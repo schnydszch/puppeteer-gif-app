@@ -42,7 +42,7 @@ app.post('/generate-gif', async (req, res) => {
     if (query) {
       const searchInput = await page.$('input[name=\"q\"]');
       if (searchInput) {
-        console.log('✅ Typing query with forced visible updates...');
+        console.log('✅ Typing query with fast capture + flash...');
         for (let i = 0; i < query.length; i++) {
           const partial = query.slice(0, i + 1);
 
@@ -51,14 +51,16 @@ app.post('/generate-gif', async (req, res) => {
             el.focus();
             el.value = val;
             el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.style.outline = '2px solid red';
+            setTimeout(() => { el.style.outline = ''; }, 50);
           }, 'input[name="q"]', partial);
 
-          await new Promise(resolve => setTimeout(resolve, 300));
-
-          screenshotPath = `${outputDir}/frame_${frameCount}.png`;
+          const screenshotPath = `${outputDir}/frame_${frameCount}.png`;
           await page.screenshot({ path: screenshotPath });
           console.log(`📸 Captured typing frame: ${screenshotPath}`);
           frameCount++;
+
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
 
         await page.keyboard.press('Enter');
@@ -70,7 +72,7 @@ app.post('/generate-gif', async (req, res) => {
 
     // Capture post-search frames
     for (let i = 0; i < 5; i++) {
-      screenshotPath = `${outputDir}/frame_${frameCount}.png`;
+      const screenshotPath = `${outputDir}/frame_${frameCount}.png`;
       await page.screenshot({ path: screenshotPath });
       console.log(`📸 Captured post-search frame: ${screenshotPath}`);
       frameCount++;
