@@ -1,37 +1,43 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Puppeteer GIF Generator</title>
+  <title>Puppeteer Video Generator</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    input, button { width: 300px; padding: 5px; margin: 5px 0; }
+    video { margin-top: 20px; width: 640px; height: auto; }
+  </style>
 </head>
-<body style="font-family:sans-serif; padding:20px;">
-  <h1>🐱 Puppeteer GIF Generator</h1>
-  <form id="gifForm">
-    <input type="text" name="url" placeholder="Website URL" value="https://www.google.com" style="width:300px;" required><br><br>
-    <input type="text" name="query" placeholder="Search Query (optional)" value="puppies" style="width:300px;"><br><br>
-    <button type="submit">Generate GIF</button>
+<body>
+  <h1>🎥 Puppeteer Video Generator</h1>
+  <form id="videoForm">
+    <input type="text" name="url" placeholder="Website URL" value="https://duckduckgo.com" required><br>
+    <input type="text" name="query" placeholder="Search Query (optional)" value="puppies"><br>
+    <button type="submit">Generate Video</button>
   </form>
 
-  <div id="result" style="margin-top:20px;"></div>
+  <div id="result"></div>
 
   <script>
-    document.getElementById('gifForm').addEventListener('submit', async function (e) {
+    document.getElementById('videoForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       const url = this.url.value;
       const query = this.query.value;
 
-      document.getElementById('result').innerHTML = '⏳ Generating... please wait!';
+      document.getElementById('result').innerHTML = '⏳ Generating video... please wait.';
 
       try {
-        const res = await fetch('/generate-gif', {
+        const res = await fetch('/generate-video', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url, query })
         });
         const data = await res.json();
-        if (data.gifUrl) {
+
+        if (data.videoUrl) {
           document.getElementById('result').innerHTML = `
             <p><strong>Copy-paste message:</strong><br>${data.message}</p>
-            <img src="${data.gifUrl}" alt="Generated GIF" width="300"><br><br>
+            <video controls src="${data.videoUrl}"></video><br>
             <button onclick="navigator.clipboard.writeText('${data.message}')">📋 Copy Text to Clipboard</button>
           `;
         } else {
