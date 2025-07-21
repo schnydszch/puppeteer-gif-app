@@ -32,34 +32,30 @@ app.post('/generate-gif', async (req, res) => {
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
 
     if (query) {
-      // Check if search input exists
-      const searchInput = await page.$('input[name="q"]');
+      const searchInput = await page.$('input[name=\"q\"]');
       if (searchInput) {
-        console.log('✅ Found input[name="q"], typing query...');
+        console.log('✅ Found input[name=\"q\"], typing query...');
         await searchInput.type(query);
         await page.keyboard.press('Enter');
-        await page.waitForTimeout(3000);
+        await new Promise(resolve => setTimeout(resolve, 3000));
       } else {
-        console.warn('⚠️ No input[name="q"] found on this page. Skipping typing.');
+        console.warn('⚠️ No input[name=\"q\"] found on this page. Skipping typing.');
       }
     }
 
-    // Take screenshots
     for (let i = 0; i < 3; i++) {
       const screenshotPath = `${outputDir}/frame_${i}.png`;
       await page.screenshot({ path: screenshotPath });
       console.log(`📸 Saved screenshot: ${screenshotPath}`);
-      await page.waitForTimeout(500);
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
 
-    // Create GIF using ffmpeg
     console.log('🎞️ Creating GIF with ffmpeg...');
     await new Promise((resolve, reject) => {
       const cmd = `ffmpeg -y -framerate 1 -i ${outputDir}/frame_%d.png -vf scale=480:-1 ${gifFile}`;
       exec(cmd, (err) => err ? reject(err) : resolve());
     });
 
-    // Upload GIF to catbox.moe
     console.log('☁️ Uploading GIF to catbox.moe...');
     const form = new FormData();
     form.append('reqtype', 'fileupload');
