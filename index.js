@@ -1,25 +1,29 @@
-// Quick Start: Node.js + Puppeteer + FFmpeg to create a GIF from website interaction
-
 const express = require('express');
 const puppeteer = require('puppeteer');
-const { exec } = require('child_process');
+const axios = require('axios');
+const FormData = require('form-data');
 const fs = require('fs');
 const path = require('path');
+const { exec } = require('child_process');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(express.static('public'));
 
 app.post('/generate-gif', async (req, res) => {
   const { url, query } = req.body;
   const outputDir = './output';
-  const videoFile = path.join(outputDir, 'output.mp4');
   const gifFile = path.join(outputDir, 'output.gif');
 
-  if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir);
+  if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
-  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
   const page = await browser.newPage();
 
   try {
@@ -27,47 +31,40 @@ app.post('/generate-gif', async (req, res) => {
     await page.goto(url);
 
     if (query) {
-      await page.type('input[name="q"]', query);
+      await page.type('input[name=\"q\"]', query);
       await page.keyboard.press('Enter');
       await page.waitForTimeout(3000);
     }
 
-    const client = await page.target().createCDPSession();
-    await client.send('Page.startScreencast', { format: 'png', everyNthFrame: 1 });
+    for (let i = 0; i < 3; i++) {
+      await page.screenshot({ path: `${outputDir}/frame_${i}.png` });
+      await page.waitForTimeout(500);
+    }
 
-    const frames = [];
-    client.on('Page.screencastFrame', async ({ data, metadata, sessionId }) => {
-      frames.push(Buffer.from(data, 'base64'));
-      await client.send('Page.screencastFrameAck', { sessionId });
+    await new Promise((resolve, reject) => {
+      const cmd = `ffmpeg -y -framerate 1 -i ${outputDir}/frame_%d.png -vf scale=480:-1 ${gifFile}`;
+      exec(cmd, (err) => err ? reject(err) : resolve());
     });
 
-    await page.waitForTimeout(5000); // capture ~5 sec
-    await client.send('Page.stopScreencast');
+    const form = new FormData();
+    form.append('reqtype', 'fileupload');
+    form.append('fileToUpload', fs.createReadStream(gifFile));
 
-    const frameDir = path.join(outputDir, 'frames');
-    if (!fs.existsSync(frameDir)) fs.mkdirSync(frameDir);
-
-    frames.forEach((frame, idx) => {
-      fs.writeFileSync(path.join(frameDir, `frame_${idx}.png`), frame);
+    const uploadRes = await axios.post('https://catbox.moe/user/api.php', form, {
+      headers: form.getHeaders()
     });
 
-    exec(`ffmpeg -framerate 5 -i ${frameDir}/frame_%d.png -vf scale=640:-1 ${gifFile}`, (err, stdout, stderr) => {
-      if (err) {
-        console.error('FFmpeg error:', stderr);
-        res.status(500).send('Failed to generate GIF');
-      } else {
-        res.sendFile(path.resolve(gifFile));
-      }
-      browser.close();
-    });
+    const gifUrl = uploadRes.data.trim();
+    const message = `Here’s how to search for “${query}” on ${url} 🚀:\n${gifUrl}`;
+
+    res.json({ message, gifUrl });
 
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: 'Something went wrong' });
+  } finally {
     await browser.close();
-    res.status(500).send('Error occurred');
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
