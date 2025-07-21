@@ -33,17 +33,24 @@ app.post('/generate-gif', async (req, res) => {
 
     let frameCount = 0;
 
+    // Capture initial page
+    const screenshotPath = `${outputDir}/frame_${frameCount}.png`;
+    await page.screenshot({ path: screenshotPath });
+    console.log(`📸 Captured initial frame: ${screenshotPath}`);
+    frameCount++;
+
     if (query) {
       const searchInput = await page.$('input[name=\"q\"]');
       if (searchInput) {
         console.log('✅ Typing query with live capture...');
         for (const char of query) {
-          await searchInput.type(char);
+          await searchInput.type(char, { delay: 200 }); // slow per char
+          await page.evaluate(el => el.blur(), searchInput); // trigger repaint
           const screenshotPath = `${outputDir}/frame_${frameCount}.png`;
           await page.screenshot({ path: screenshotPath });
           console.log(`📸 Captured typing frame: ${screenshotPath}`);
           frameCount++;
-          await new Promise(resolve => setTimeout(resolve, 200)); // slow typing + allow rendering
+          await new Promise(resolve => setTimeout(resolve, 300)); // wait extra for render
         }
         await page.keyboard.press('Enter');
         await new Promise(resolve => setTimeout(resolve, 3000));
@@ -52,8 +59,8 @@ app.post('/generate-gif', async (req, res) => {
       }
     }
 
-    // Capture a few extra frames after search
-    for (let i = 0; i < 3; i++) {
+    // Capture extra frames after search
+    for (let i = 0; i < 5; i++) {
       const screenshotPath = `${outputDir}/frame_${frameCount}.png`;
       await page.screenshot({ path: screenshotPath });
       console.log(`📸 Captured post-search frame: ${screenshotPath}`);
@@ -61,9 +68,9 @@ app.post('/generate-gif', async (req, res) => {
       await new Promise(resolve => setTimeout(resolve, 500));
     }
 
-    console.log('🎞️ Creating GIF with ffmpeg...');
+    console.log('🎞️ Creating high-res GIF with ffmpeg...');
     await new Promise((resolve, reject) => {
-      const cmd = `ffmpeg -y -framerate 2 -i ${outputDir}/frame_%d.png -vf scale=480:-1 ${gifFile}`;
+      const cmd = `ffmpeg -y -framerate 4 -i ${outputDir}/frame_%d.png ${gifFile}`; // removed scale, increased framerate
       exec(cmd, (err) => err ? reject(err) : resolve());
     });
 
@@ -92,4 +99,3 @@ app.post('/generate-gif', async (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
-
