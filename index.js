@@ -31,11 +31,20 @@ app.post('/generate-gif', async (req, res) => {
     await page.setViewport({ width: 1280, height: 720 });
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
 
+    let frameCount = 0;
+
     if (query) {
       const searchInput = await page.$('input[name=\"q\"]');
       if (searchInput) {
-        console.log('✅ Found input[name=\"q\"], typing query...');
-        await searchInput.type(query);
+        console.log('✅ Typing query with live capture...');
+        for (const char of query) {
+          await searchInput.type(char);
+          const screenshotPath = `${outputDir}/frame_${frameCount}.png`;
+          await page.screenshot({ path: screenshotPath });
+          console.log(`📸 Captured typing frame: ${screenshotPath}`);
+          frameCount++;
+          await new Promise(resolve => setTimeout(resolve, 200)); // slow typing + allow rendering
+        }
         await page.keyboard.press('Enter');
         await new Promise(resolve => setTimeout(resolve, 3000));
       } else {
@@ -43,16 +52,18 @@ app.post('/generate-gif', async (req, res) => {
       }
     }
 
+    // Capture a few extra frames after search
     for (let i = 0; i < 3; i++) {
-      const screenshotPath = `${outputDir}/frame_${i}.png`;
+      const screenshotPath = `${outputDir}/frame_${frameCount}.png`;
       await page.screenshot({ path: screenshotPath });
-      console.log(`📸 Saved screenshot: ${screenshotPath}`);
+      console.log(`📸 Captured post-search frame: ${screenshotPath}`);
+      frameCount++;
       await new Promise(resolve => setTimeout(resolve, 500));
     }
 
     console.log('🎞️ Creating GIF with ffmpeg...');
     await new Promise((resolve, reject) => {
-      const cmd = `ffmpeg -y -framerate 1 -i ${outputDir}/frame_%d.png -vf scale=480:-1 ${gifFile}`;
+      const cmd = `ffmpeg -y -framerate 2 -i ${outputDir}/frame_%d.png -vf scale=480:-1 ${gifFile}`;
       exec(cmd, (err) => err ? reject(err) : resolve());
     });
 
