@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Puppeteer GIF Generator</title>
+</head>
+<body style="font-family:sans-serif; padding:20px;">
+  <h1>🐱 Puppeteer GIF Generator</h1>
+  <form id="gifForm">
+    <input type="text" name="url" placeholder="Website URL" value="https://www.google.com" style="width:300px;" required><br><br>
+    <input type="text" name="query" placeholder="Search Query (optional)" value="puppies" style="width:300px;"><br><br>
+    <button type="submit">Generate GIF</button>
+  </form>
+
+  <div id="result" style="margin-top:20px;"></div>
+
+  <script>
+    document.getElementById('gifForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const url = this.url.value;
+      const query = this.query.value;
+
+      document.getElementById('result').innerHTML = '⏳ Generating... please wait!';
+
+      try {
+        const res = await fetch('/generate-gif', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, query })
+        });
+        const data = await res.json();
+        if (data.gifUrl) {
+          document.getElementById('result').innerHTML = `
+            <p><strong>Copy-paste message:</strong><br>${data.message}</p>
+            <img src="${data.gifUrl}" alt="Generated GIF" width="300"><br><br>
+            <button onclick="navigator.clipboard.writeText('${data.message}')">📋 Copy Text to Clipboard</button>
+          `;
+        } else {
+          document.getElementById('result').innerText = '⚠️ Error: ' + (data.error || 'Unknown error');
+        }
+      } catch (err) {
+        document.getElementById('result').innerText = '❌ Request failed.';
+      }
+    });
+  </script>
+</body>
+</html>
