@@ -33,8 +33,8 @@ app.post('/generate-gif', async (req, res) => {
 
     let frameCount = 0;
 
-    // Capture initial page
-    const screenshotPath = `${outputDir}/frame_${frameCount}.png`;
+    // Capture initial page frame
+    let screenshotPath = `${outputDir}/frame_${frameCount}.png`;
     await page.screenshot({ path: screenshotPath });
     console.log(`📸 Captured initial frame: ${screenshotPath}`);
     frameCount++;
@@ -42,16 +42,25 @@ app.post('/generate-gif', async (req, res) => {
     if (query) {
       const searchInput = await page.$('input[name=\"q\"]');
       if (searchInput) {
-        console.log('✅ Typing query with live capture...');
-        for (const char of query) {
-          await searchInput.type(char, { delay: 200 }); // slow per char
-          await page.evaluate(el => el.blur(), searchInput); // trigger repaint
-          const screenshotPath = `${outputDir}/frame_${frameCount}.png`;
+        console.log('✅ Typing query with forced visible updates...');
+        for (let i = 0; i < query.length; i++) {
+          const partial = query.slice(0, i + 1);
+
+          await page.evaluate((selector, val) => {
+            const el = document.querySelector(selector);
+            el.focus();
+            el.value = val;
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+          }, 'input[name="q"]', partial);
+
+          await new Promise(resolve => setTimeout(resolve, 300));
+
+          screenshotPath = `${outputDir}/frame_${frameCount}.png`;
           await page.screenshot({ path: screenshotPath });
           console.log(`📸 Captured typing frame: ${screenshotPath}`);
           frameCount++;
-          await new Promise(resolve => setTimeout(resolve, 300)); // wait extra for render
         }
+
         await page.keyboard.press('Enter');
         await new Promise(resolve => setTimeout(resolve, 3000));
       } else {
@@ -59,18 +68,18 @@ app.post('/generate-gif', async (req, res) => {
       }
     }
 
-    // Capture extra frames after search
+    // Capture post-search frames
     for (let i = 0; i < 5; i++) {
-      const screenshotPath = `${outputDir}/frame_${frameCount}.png`;
+      screenshotPath = `${outputDir}/frame_${frameCount}.png`;
       await page.screenshot({ path: screenshotPath });
       console.log(`📸 Captured post-search frame: ${screenshotPath}`);
       frameCount++;
       await new Promise(resolve => setTimeout(resolve, 500));
     }
 
-    console.log('🎞️ Creating high-res GIF with ffmpeg...');
+    console.log('🎞️ Creating GIF with ffmpeg...');
     await new Promise((resolve, reject) => {
-      const cmd = `ffmpeg -y -framerate 4 -i ${outputDir}/frame_%d.png ${gifFile}`; // removed scale, increased framerate
+      const cmd = `ffmpeg -y -framerate 4 -i ${outputDir}/frame_%d.png ${gifFile}`;
       exec(cmd, (err) => err ? reject(err) : resolve());
     });
 
@@ -99,4 +108,3 @@ app.post('/generate-gif', async (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
-
