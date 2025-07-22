@@ -105,29 +105,36 @@ app.post('/generate-video', async (req, res) => {
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
 
     if (query) {
-      const searchInput = await page.$('input[name="q"]');
+      const selector = 'input[name="q"]';
+      const searchInput = await page.$(selector);
       if (searchInput) {
         await searchInput.click();
 
-        // Add red outline to force visual update
-        await page.evaluate(() => {
-          const el = document.querySelector('input[name="q"]');
+        // Add red outline for visibility
+        await page.evaluate(sel => {
+          const el = document.querySelector(sel);
           el.style.outline = '3px solid red';
-        });
+        }, selector);
 
-        // Simulate real typing per character
-        for (const char of query) {
-          await page.keyboard.press(char);
-          await new Promise(r => setTimeout(r, 150));
+        // Inject input per letter with visible updates
+        for (let i = 1; i <= query.length; i++) {
+          const partial = query.slice(0, i);
+          await page.evaluate((sel, val) => {
+            const el = document.querySelector(sel);
+            el.value = val;
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+          }, selector, partial);
+          await new Promise(r => setTimeout(r, 200));
         }
 
-        // Remove red outline
-        await page.evaluate(() => {
-          const el = document.querySelector('input[name="q"]');
+        // Remove outline
+        await page.evaluate(sel => {
+          const el = document.querySelector(sel);
           el.style.outline = '';
-        });
+        }, selector);
 
-        // Wait before Enter
+        // Wait briefly before submitting
         await new Promise(r => setTimeout(r, 500));
         await page.keyboard.press('Enter');
 
