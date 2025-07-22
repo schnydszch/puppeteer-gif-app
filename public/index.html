@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Puppeteer Video Generator</title>
+  <title>Puppeteer Generator</title>
   <style>
     body { font-family: sans-serif; padding: 20px; max-width: 700px; margin: auto; }
     input, select, button { width: 100%; padding: 8px; margin: 8px 0; }
-    video { margin-top: 20px; width: 100%; height: auto; border: 1px solid #ccc; }
+    video, img { margin-top: 20px; width: 100%; height: auto; border: 1px solid #ccc; }
     #spinner { font-size: 18px; color: #555; }
     #result { margin-top: 20px; }
     .success { color: green; }
@@ -13,50 +13,52 @@
   </style>
 </head>
 <body>
-  <h1>🎥 Puppeteer Video Generator</h1>
-  <form id="videoForm">
+  <h1>🐱 Puppeteer Generator</h1>
+  <form id="genForm">
     <input type="text" name="url" placeholder="Website URL" value="https://duckduckgo.com" required>
     <input type="text" name="query" placeholder="Search Query (optional)" value="puppies">
-    <select name="resolution">
-      <option value="1280x720">1280x720 (HD)</option>
-      <option value="640x360">640x360 (SD)</option>
+    <select name="mode">
+      <option value="gif">GIF Mode</option>
+      <option value="video">Video Mode</option>
     </select>
-    <button type="submit">Generate Video</button>
+    <button type="submit">Generate</button>
   </form>
 
-  <div id="spinner" style="display:none;">⏳ Generating video... please wait.</div>
-
+  <div id="spinner" style="display:none;">⏳ Processing... please wait.</div>
   <div id="result"></div>
 
   <script>
-    const form = document.getElementById('videoForm');
+    const form = document.getElementById('genForm');
     const spinner = document.getElementById('spinner');
     const result = document.getElementById('result');
 
-    form.addEventListener('submit', async function(e) {
+    form.addEventListener('submit', async e => {
       e.preventDefault();
-      const url = this.url.value;
-      const query = this.query.value;
-      const resolution = this.resolution.value;
+      const url = form.url.value;
+      const query = form.query.value;
+      const mode = form.mode.value;
 
       spinner.style.display = 'block';
       result.innerHTML = '';
 
       try {
-        const res = await fetch('/generate-video', {
+        const res = await fetch(`/generate-${mode}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, query, resolution })
+          body: JSON.stringify({ url, query })
         });
 
         const data = await res.json();
         spinner.style.display = 'none';
 
-        if (data.videoUrl) {
+        if (data.fileUrl) {
+          const isGif = mode === 'gif';
           result.innerHTML = `
-            <p class="success">✅ Video generated successfully!</p>
+            <p class="success">✅ ${isGif ? 'GIF' : 'Video'} generated successfully!</p>
             <p><strong>Copy-paste message:</strong><br>${data.message}</p>
-            <video controls src="${data.videoUrl}"></video><br>
+            ${isGif
+              ? `<img src="${data.fileUrl}">`
+              : `<video controls src="${data.fileUrl}"></video>`}
             <button onclick="navigator.clipboard.writeText('${data.message}')">📋 Copy Text to Clipboard</button>
             <button onclick="window.location.reload()">🔄 Reset</button>
           `;
