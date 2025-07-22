@@ -108,9 +108,31 @@ app.post('/generate-video', async (req, res) => {
       const searchInput = await page.$('input[name="q"]');
       if (searchInput) {
         await searchInput.click();
-        await page.type('input[name="q"]', query, { delay: 200 });
+
+        // Add red outline to force visual update
+        await page.evaluate(() => {
+          const el = document.querySelector('input[name="q"]');
+          el.style.outline = '3px solid red';
+        });
+
+        // Simulate real typing per character
+        for (const char of query) {
+          await page.keyboard.press(char);
+          await new Promise(r => setTimeout(r, 150));
+        }
+
+        // Remove red outline
+        await page.evaluate(() => {
+          const el = document.querySelector('input[name="q"]');
+          el.style.outline = '';
+        });
+
+        // Wait before Enter
+        await new Promise(r => setTimeout(r, 500));
         await page.keyboard.press('Enter');
-        await new Promise(r => setTimeout(r, 3000));
+
+        // Wait for search results
+        await new Promise(r => setTimeout(r, 4000));
       }
     }
 
