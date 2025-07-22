@@ -59,7 +59,7 @@ app.post('/generate-gif', async (req, res) => {
       if (searchInput) {
         await searchInput.type(query, { delay: 200 });
         await page.keyboard.press('Enter');
-        await page.waitForTimeout(3000);
+        await new Promise(r => setTimeout(r, 3000));
       }
     }
 
@@ -110,11 +110,11 @@ app.post('/generate-video', async (req, res) => {
         await searchInput.click();
         await page.type('input[name="q"]', query, { delay: 200 });
         await page.keyboard.press('Enter');
-        await page.waitForTimeout(3000);
+        await new Promise(r => setTimeout(r, 3000));
       }
     }
 
-    await page.waitForTimeout(2000);
+    await new Promise(r => setTimeout(r, 2000));
     await recorder.stop();
 
     const videoUrl = await uploadToCatbox(videoFile);
