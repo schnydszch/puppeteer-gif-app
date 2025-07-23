@@ -1,90 +1,38 @@
 const express = require('express');
+const bodyParser = require('body-parser');
+const path = require('path');
+const fs = require('fs');
 const puppeteer = require('puppeteer');
+const { PuppeteerScreenRecorder } = require('puppeteer-screen-recorder');
 const axios = require('axios');
 const FormData = require('form-data');
-const fs = require('fs');
-const path = require('path');
-const { exec } = require('child_process');
-const { PuppeteerScreenRecorder } = require('puppeteer-screen-recorder');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const port = process.env.PORT || 3000;
+const outputDir = path.join(__dirname, 'output');
 
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+app.use(bodyParser.json());
 app.use(express.static('public'));
 
-const outputDir = './output';
-if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir);
 
-async function launchBrowser() {
-  return puppeteer.launch({
+const launchBrowser = async () => {
+  return await puppeteer.launch({
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu']
   });
-}
+};
 
-async function uploadToCatbox(filePath) {
+const uploadToCatbox = async (filePath) => {
   const form = new FormData();
   form.append('reqtype', 'fileupload');
   form.append('fileToUpload', fs.createReadStream(filePath));
 
-  const res = await axios.post('https://catbox.moe/user/api.php', form, {
+  const response = await axios.post('https://catbox.moe/user/api.php', form, {
     headers: form.getHeaders()
   });
-  return res.data.trim();
-}
-
-app.post('/generate-gif', async (req, res) => {
-  const { url, query } = req.body;
-  const gifFile = path.join(outputDir, 'output.gif');
-
-  const browser = await launchBrowser();
-  const page = await browser.newPage();
-
-  try {
-    await page.setViewport({ width: 1280, height: 720 });
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-
-    let frameCount = 0;
-    for (let i = 0; i < 3; i++) {
-      const shotPath = `${outputDir}/frame_${frameCount}.png`;
-      await page.screenshot({ path: shotPath });
-      frameCount++;
-      await new Promise(r => setTimeout(r, 500));
-    }
-
-    if (query) {
-      const searchInput = await page.$('input[name="q"]');
-      if (searchInput) {
-        await searchInput.type(query, { delay: 200 });
-        await page.keyboard.press('Enter');
-        await new Promise(r => setTimeout(r, 3000));
-      }
-    }
-
-    for (let i = 0; i < 3; i++) {
-      const shotPath = `${outputDir}/frame_${frameCount}.png`;
-      await page.screenshot({ path: shotPath });
-      frameCount++;
-      await new Promise(r => setTimeout(r, 500));
-    }
-
-    await new Promise((resolve, reject) => {
-      exec(`ffmpeg -y -framerate 4 -i ${outputDir}/frame_%d.png ${gifFile}`, err =>
-        err ? reject(err) : resolve()
-      );
-    });
-
-    const gifUrl = await uploadToCatbox(gifFile);
-    res.json({ message: `GIF ready! 🚀\n${gifUrl}`, fileUrl: gifUrl });
-  } catch (err) {
-    console.error('❌ /generate-gif ERROR:', err.message);
-    res.status(500).json({ error: 'GIF generation failed' });
-  } finally {
-    await browser.close();
-  }
-});
+  return response.data;
+};
 
 app.post('/generate-video', async (req, res) => {
   const { url, query } = req.body;
@@ -110,13 +58,11 @@ app.post('/generate-video', async (req, res) => {
       if (searchInput) {
         await searchInput.click();
 
-        // Add red outline for visibility
         await page.evaluate(sel => {
           const el = document.querySelector(sel);
           el.style.outline = '3px solid red';
         }, selector);
 
-        // Inject input per letter with visible updates
         for (let i = 1; i <= query.length; i++) {
           const partial = query.slice(0, i);
           await page.evaluate((sel, val) => {
@@ -128,17 +74,20 @@ app.post('/generate-video', async (req, res) => {
           await new Promise(r => setTimeout(r, 200));
         }
 
-        // Remove outline
         await page.evaluate(sel => {
           const el = document.querySelector(sel);
           el.style.outline = '';
         }, selector);
 
-        // Wait briefly before submitting
-        await new Promise(r => setTimeout(r, 500));
-        await page.keyboard.press('Enter');
+        const searchButton = await page.$('input[type="submit"], button[type="submit"]');
+        if (searchButton) {
+          await new Promise(r => setTimeout(r, 500));
+          await searchButton.click();
+        } else {
+          await page.keyboard.press('Enter');
+        }
 
-        // Wait for search results
+        await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 });
         await new Promise(r => setTimeout(r, 4000));
       }
     }
@@ -156,4 +105,6 @@ app.post('/generate-video', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(port, () => {
+  console.log(`🚀 Server running on http://localhost:${port}`);
+});
