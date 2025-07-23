@@ -1,38 +1,28 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Website Video Generator</title>
+  <title>Puppeteer Video Capture</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; text-align: center; }
+    button { padding: 1rem 2rem; font-size: 1.2rem; }
+  </style>
 </head>
 <body>
-  <h2>Video Generator</h2>
-  <form id="genForm">
-    <label>Website URL:</label><br>
-    <input type="text" id="url" placeholder="https://google.com" size="50"><br><br>
-    <label>Query Text:</label><br>
-    <input type="text" id="query" placeholder="search term" size="50"><br><br>
-    <button type="submit">Generate Video</button>
-  </form>
-
-  <div id="result" style="margin-top:20px;"></div>
-
+  <h1>Puppeteer Search Video Generator</h1>
+  <button onclick="generateVideo()">Generate Video</button>
+  <p id="status"></p>
   <script>
-    document.getElementById("genForm").addEventListener("submit", async function(e) {
-      e.preventDefault();
-      const url = document.getElementById("url").value;
-      const query = document.getElementById("query").value;
-
-      const res = await fetch('/generate-video', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, query })
-      });
-
-      const data = await res.json();
-      document.getElementById("result").innerHTML = data.fileUrl
-        ? `<p>🎬 Video ready: <a href="${data.fileUrl}" target="_blank">${data.fileUrl}</a></p>`
-        : `<p style="color:red;">${data.error}</p>`;
-    });
+    async function generateVideo() {
+      document.getElementById('status').textContent = 'Generating...';
+      const res = await fetch('/generate');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'puppeteer_recording.webm';
+      a.click();
+      document.getElementById('status').textContent = 'Video downloaded!';
+    }
   </script>
 </body>
 </html>
