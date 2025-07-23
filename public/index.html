@@ -1,33 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Search Recorder</title>
+  <title>Puppeteer Video Recorder</title>
 </head>
 <body>
-  <h2>Search Page</h2>
-  <input type="text" id="searchInput" placeholder="Enter search term">
-  <button id="searchBtn">Search</button>
-
-  <script>
-    const searchBtn = document.getElementById("searchBtn");
-
-    searchBtn.addEventListener("click", async () => {
-      const searchText = document.getElementById("searchInput").value;
-      const response = await fetch("/record", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ searchText })
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        const link = document.createElement("a");
-        link.href = data.url;
-        link.download = "recorded.mp4";
-        link.textContent = "Download Video";
-        document.body.appendChild(link);
-      }
-    });
-  </script>
+  <h1>Puppeteer Video Recorder</h1>
+  <form method="POST" action="/record">
+    <label for="search">Text to search:</label>
+    <input type="text" name="search" id="search" required />
+    <button type="submit">Record</button>
+  </form>
 </body>
 </html>
