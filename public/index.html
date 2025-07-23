@@ -1,37 +1,32 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Puppeteer Video Recorder</title>
+  <title>Search Recorder</title>
 </head>
 <body>
-  <h1>Puppeteer Video Recorder</h1>
-  <form id="record-form">
-    <input type="text" id="url" placeholder="Enter URL" required value="https://google.com"><br><br>
-    <input type="text" id="searchText" placeholder="Enter text to search" required value="Render puppeteer"><br><br>
-    <button type="submit">Generate Video</button>
-  </form>
-  <br>
-  <video id="preview" width="640" height="360" controls style="display:none;"></video>
+  <h2>Search Page</h2>
+  <input type="text" id="searchInput" placeholder="Enter search term">
+  <button id="searchBtn">Search</button>
 
   <script>
-    const form = document.getElementById('record-form');
-    const preview = document.getElementById('preview');
+    const searchBtn = document.getElementById("searchBtn");
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const url = document.getElementById('url').value;
-      const searchText = document.getElementById('searchText').value;
-
-      const res = await fetch('/record', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, searchText })
+    searchBtn.addEventListener("click", async () => {
+      const searchText = document.getElementById("searchInput").value;
+      const response = await fetch("/record", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ searchText })
       });
 
-      const data = await res.json();
-      preview.src = data.video;
-      preview.style.display = 'block';
+      const data = await response.json();
+      if (data.success) {
+        const link = document.createElement("a");
+        link.href = data.url;
+        link.download = "recorded.mp4";
+        link.textContent = "Download Video";
+        document.body.appendChild(link);
+      }
     });
   </script>
 </body>
