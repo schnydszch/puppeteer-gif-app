@@ -1,71 +1,37 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Puppeteer Generator</title>
-  <style>
-    body { font-family: sans-serif; max-width: 700px; margin: auto; padding: 20px; }
-    input, select, button { width: 100%; padding: 8px; margin: 8px 0; }
-    video, img { width: 100%; margin-top: 20px; border: 1px solid #ccc; }
-    #spinner { font-size: 16px; color: #555; }
-    #result { margin-top: 20px; }
-    .success { color: green; }
-    .error { color: red; }
-  </style>
+  <meta charset="UTF-8">
+  <title>Website Video Generator</title>
 </head>
 <body>
-  <h1>🚀 Puppeteer Generator</h1>
+  <h2>Video Generator</h2>
   <form id="genForm">
-    <input type="text" name="url" placeholder="Website URL" value="https://duckduckgo.com" required>
-    <input type="text" name="query" placeholder="Search Query (optional)" value="puppies">
-    <select name="mode">
-      <option value="gif">GIF Mode</option>
-      <option value="video">Video Mode</option>
-    </select>
-    <button type="submit">Generate</button>
+    <label>Website URL:</label><br>
+    <input type="text" id="url" placeholder="https://google.com" size="50"><br><br>
+    <label>Query Text:</label><br>
+    <input type="text" id="query" placeholder="search term" size="50"><br><br>
+    <button type="submit">Generate Video</button>
   </form>
 
-  <div id="spinner" style="display:none;">⏳ Processing... please wait.</div>
-  <div id="result"></div>
+  <div id="result" style="margin-top:20px;"></div>
 
   <script>
-    const form = document.getElementById('genForm');
-    const spinner = document.getElementById('spinner');
-    const result = document.getElementById('result');
-
-    form.addEventListener('submit', async e => {
+    document.getElementById("genForm").addEventListener("submit", async function(e) {
       e.preventDefault();
-      const url = form.url.value;
-      const query = form.query.value;
-      const mode = form.mode.value;
+      const url = document.getElementById("url").value;
+      const query = document.getElementById("query").value;
 
-      spinner.style.display = 'block';
-      result.innerHTML = '';
+      const res = await fetch('/generate-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, query })
+      });
 
-      try {
-        const res = await fetch(`/generate-${mode}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, query })
-        });
-
-        const data = await res.json();
-        spinner.style.display = 'none';
-
-        if (data.fileUrl) {
-          result.innerHTML = `
-            <p class="success">✅ ${mode.toUpperCase()} generated!</p>
-            <p><strong>Copy-paste message:</strong><br>${data.message}</p>
-            ${mode === 'gif' ? `<img src="${data.fileUrl}">` : `<video controls src="${data.fileUrl}"></video>`}
-            <button onclick="navigator.clipboard.writeText('${data.message}')">📋 Copy to Clipboard</button>
-            <button onclick="window.location.reload()">🔄 Reset</button>
-          `;
-        } else {
-          result.innerHTML = `<p class="error">⚠️ Error: ${data.error || 'Unknown error'}</p>`;
-        }
-      } catch (err) {
-        spinner.style.display = 'none';
-        result.innerHTML = `<p class="error">❌ Request failed. Check server logs.</p>`;
-      }
+      const data = await res.json();
+      document.getElementById("result").innerHTML = data.fileUrl
+        ? `<p>🎬 Video ready: <a href="${data.fileUrl}" target="_blank">${data.fileUrl}</a></p>`
+        : `<p style="color:red;">${data.error}</p>`;
     });
   </script>
 </body>
