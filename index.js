@@ -1,67 +1,47 @@
-const express = require('express');
-const puppeteer = require('puppeteer');
-const fs = require('fs');
-const { exec } = require('child_process');
-const path = require('path');
+const express = require("express");
+const puppeteer = require("puppeteer");
+const { v4: uuidv4 } = require("uuid");
+const fs = require("fs");
+const { exec } = require("child_process");
+const path = require("path");
 
 const app = express();
+app.use(express.json());
+app.use(express.static("public"));
+app.use("/videos", express.static("videos"));
+
 const PORT = process.env.PORT || 10000;
 
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-app.use(express.static('public'));
-
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/public/index.html');
-});
-
-// Optional health check
-app.get('/healthz', (req, res) => {
-  res.send('OK');
-});
-
-app.post('/capture', async (req, res) => {
-  const searchText = req.body.searchText || 'example search';
-  const filename = `recording-${Date.now()}.mp4`;
-  const output = path.join(__dirname, 'public', 'recordings', filename);
-
-  if (!fs.existsSync(path.join(__dirname, 'public', 'recordings'))) {
-    fs.mkdirSync(path.join(__dirname, 'public', 'recordings'), { recursive: true });
-  }
+app.post("/record", async (req, res) => {
+  const { searchText } = req.body;
+  const outputFile = `videos/${uuidv4()}.mp4`;
 
   const browser = await puppeteer.launch({
     headless: false,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      `--window-size=1280,720`
-    ],
-    defaultViewport: {
-      width: 1280,
-      height: 720
-    }
+    args: ["--no-sandbox", "--disable-setuid-sandbox"]
   });
 
   const page = await browser.newPage();
+  await page.setViewport({ width: 1280, height: 720 });
 
-  const ffmpeg = exec(`ffmpeg -y -f x11grab -video_size 1280x720 -i :99.0 -r 25 ${output}`);
+  // Start recording using ffmpeg from display :99
+  const ffmpeg = exec(`ffmpeg -y -video_size 1280x720 -f x11grab -i :99.0 -t 10 -r 25 -vcodec libx264 -preset ultrafast ${outputFile}`);
 
-  await page.goto('https://www.google.com/', { waitUntil: 'networkidle2' });
+  // Go to page
+  await page.goto("http://localhost:10000", { waitUntil: "networkidle2" });
 
-  await page.type('input[name="q"]', searchText, { delay: 100 });
-  await page.keyboard.press('Enter');
-  await page.waitForNavigation({ waitUntil: 'networkidle2' });
+  // Inject text and click search
+  await page.type("#searchInput", searchText, { delay: 100 });
+  await page.click("#searchBtn");
 
-  await new Promise(resolve => setTimeout(resolve, 3000)); // wait to capture results
-
+  await page.waitForTimeout(8000);
   await browser.close();
-  ffmpeg.kill('SIGINT');
 
-  res.json({ video: `/recordings/${filename}` });
+  ffmpeg.on("close", () => {
+    res.json({ success: true, url: `videos/${path.basename(outputFile)}` });
+  });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
-
