@@ -29,3 +29,4 @@ EXPOSE 3000
 
 # Start the app
 CMD ["xvfb-run", "node", "index.js"]
+
