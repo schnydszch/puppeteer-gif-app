@@ -1,7 +1,6 @@
 {
   "name": "puppeteer-video-app",
   "version": "1.0.0",
-  "description": "Record Puppeteer search interaction as a downloadable video",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
