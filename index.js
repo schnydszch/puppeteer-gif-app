@@ -1,72 +1,40 @@
-const express = require("express");
-const puppeteer = require("puppeteer");
-const stream = require("puppeteer-stream");
-const fs = require("fs");
-const path = require("path");
+**// index.js**
+const express = require('express');
+const puppeteer = require('puppeteer');
+const path = require('path');
+const fs = require('fs');
+const { execSync } = require('child_process');
 
 const app = express();
-const port = process.env.PORT || 10000;
+const PORT = process.env.PORT || 10000;
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.static('public'));
 
-app.get("/", (req, res) => {
-  res.send("🎥 Puppeteer video recorder is running.");
+app.get('/generate', async (req, res) => {
+  const OUTPUT = 'recording.webm';
+
+  if (fs.existsSync(OUTPUT)) fs.unlinkSync(OUTPUT);
+
+  const browser = await puppeteer.launch({ headless: false, args: ['--no-sandbox'] });
+  const page = await browser.newPage();
+  await page.setViewport({ width: 1280, height: 720 });
+
+  // Start ffmpeg recording
+  const ffmpeg = execSync(`ffmpeg -y -f x11grab -video_size 1280x720 -i :99.0 -codec:v libvpx -b:v 1M ${OUTPUT}`, { stdio: 'ignore' });
+
+  // Go to a page and interact
+  await page.goto('https://duckduckgo.com');
+  await page.waitForSelector('input[name="q"]');
+  await page.type('input[name="q"]', 'puppeteer automated search', { delay: 100 });
+  await page.click('input[type="submit"]');
+  await page.waitForTimeout(5000);
+
+  await browser.close();
+
+  // Send video file
+  res.download(OUTPUT);
 });
 
-app.get("/health", (req, res) => {
-  res.send("OK");
-});
-
-app.post("/record", async (req, res) => {
-  const keyword = req.body.keyword || "librarian";
-  const outputPath = path.join(__dirname, "output.webm");
-
-  let browser;
-  try {
-    console.log("Launching browser...");
-
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"]
-    });
-
-    const page = await browser.newPage();
-    await page.setViewport({ width: 1280, height: 720 });
-
-    console.log("Navigating to search page...");
-    await page.goto("https://www.google.com", { waitUntil: "networkidle2" });
-
-    console.log(`Typing keyword: "${keyword}"`);
-    await page.type('input[name="q"]', keyword, { delay: 100 });
-
-    // Start video recording
-    console.log("Starting video stream...");
-    const videoStream = await stream.record(page);
-    
-    console.log("Submitting search...");
-    await Promise.all([
-      page.keyboard.press("Enter"),
-      page.waitForNavigation({ waitUntil: "networkidle2" })
-    ]);
-
-    // Let it record the search results for a few seconds
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
-    const videoBuffer = await videoStream.stop();
-
-    fs.writeFileSync(outputPath, videoBuffer);
-    console.log(`✅ Video saved to ${outputPath}`);
-
-    res.sendFile(outputPath);
-  } catch (err) {
-    console.error("❌ Error:", err);
-    res.status(500).send("Recording failed: " + err.message);
-  } finally {
-    if (browser) await browser.close();
-  }
-});
-
-app.listen(port, () => {
-  console.log(`🚀 Server running on http://localhost:${port}`);
+app.listen(PORT, () => {
+  console.log(`🎉 Server running on http://localhost:${PORT}`);
 });
