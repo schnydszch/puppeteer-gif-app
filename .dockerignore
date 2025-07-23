@@ -1,4 +1,3 @@
 node_modules
-*.webm
-*.mp4
-.env
+npm-debug.log
+output.mp4
