@@ -1,9 +1,7 @@
 FROM node:18
 
-# Install necessary tools for Xvfb and video recording
-RUN apt-get update && \
-    apt-get install -y ffmpeg xvfb x11-utils && \
-    rm -rf /var/lib/apt/lists/*
+# Install ffmpeg and xvfb
+RUN apt-get update && apt-get install -y ffmpeg xvfb
 
 WORKDIR /app
 
@@ -14,4 +12,4 @@ COPY . .
 
 ENV DISPLAY=:99
 
-CMD ["sh", "-c", "Xvfb :99 -screen 0 1280x720x24 & npm start"]
+CMD ["xvfb-run", "--server-args=-screen 0 1280x720x24", "npm", "start"]
