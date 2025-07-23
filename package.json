@@ -1,14 +1,13 @@
 {
   "name": "puppeteer-video-app",
   "version": "1.0.0",
-  "description": "Record video using Puppeteer with stream",
+  "description": "Record Puppeteer search interaction as a downloadable video",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "puppeteer": "^21.3.8",
-    "puppeteer-stream": "^6.0.3"
+    "puppeteer": "^21.3.8"
   }
 }
