@@ -1,6 +1,7 @@
 {
   "name": "puppeteer-video-app",
   "version": "1.0.0",
+  "description": "Capture browser interaction with input and video recording",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -8,7 +9,6 @@
   "dependencies": {
     "express": "^4.18.2",
     "puppeteer": "^21.3.8",
-    "fluent-ffmpeg": "^2.1.2",
     "uuid": "^9.0.0"
   }
 }
