@@ -1,15 +1,12 @@
-FROM node:18
+FROM node:20
 
-# Install ffmpeg and xvfb
+# Install ffmpeg
 RUN apt-get update && apt-get install -y ffmpeg xvfb
 
 WORKDIR /app
-
-COPY package*.json ./
-RUN npm install
-
 COPY . .
 
-ENV DISPLAY=:99
+RUN npm install
 
-CMD ["xvfb-run", "--server-args=-screen 0 1280x720x24", "npm", "start"]
+EXPOSE 10000
+CMD ["npm", "start"]
