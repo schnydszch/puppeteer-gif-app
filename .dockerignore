@@ -1,3 +1,4 @@
 node_modules
+videos
 npm-debug.log
-output.mp4
+.DS_Store
