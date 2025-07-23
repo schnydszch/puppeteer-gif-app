@@ -1,42 +1,56 @@
+const express = require('express');
 const puppeteer = require('puppeteer');
 const fs = require('fs');
-const { exec } = require('child_process');
+const { PuppeteerScreenRecorder } = require('puppeteer-screen-recorder');
+const path = require('path');
 
-(async () => {
+const app = express();
+const PORT = process.env.PORT || 10000;
+
+app.use(express.static('public'));
+app.use(express.json());
+
+app.post('/record', async (req, res) => {
+  const { url, inputText, inputSelector, buttonSelector } = req.body;
+  const videoPath = path.join(__dirname, 'public', 'recorded.mp4');
+
   const browser = await puppeteer.launch({
-    headless: false, // Ensure the GUI is rendered for recording
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    headless: true,
+    args: ['--no-sandbox'],
+    defaultViewport: { width: 1280, height: 720 },
   });
 
   const page = await browser.newPage();
-  await page.setViewport({ width: 1280, height: 720 });
+  const recorder = new PuppeteerScreenRecorder(page, {
+    followNewTab: true,
+    fps: 25,
+    videoFrame: { width: 1280, height: 720 },
+    aspectRatio: '16:9',
+  });
 
-  const url = 'https://example.com'; // Replace with your actual URL
-  const searchSelector = '#searchInput'; // Replace with actual input selector
-  const buttonSelector = '#searchButton'; // Replace with actual button selector
-  const searchText = 'OpenAI';
+  try {
+    await recorder.start(videoPath);
+    await page.goto(url, { waitUntil: 'networkidle2' });
 
-  const ffmpegCmd = `ffmpeg -y -video_size 1280x720 -framerate 25 -f x11grab -i :99.0 -codec:v libx264 -preset ultrafast output.mp4`;
-  const recorder = exec(ffmpegCmd);
+    await page.waitForSelector(inputSelector, { timeout: 10000 });
+    await page.click(inputSelector);
+    await page.keyboard.type(inputText, { delay: 100 });
 
-  await page.goto(url, { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector(searchSelector);
+    await page.waitForTimeout(500); // Pause before clicking
+    await page.click(buttonSelector);
+    await page.waitForTimeout(5000); // Let search results load
 
-  // Simulate visible typing
-  await page.click(searchSelector);
-  await page.type(searchSelector, searchText, { delay: 100 });
+    await recorder.stop();
+    await browser.close();
+    res.json({ video: 'recorded.mp4' });
+  } catch (err) {
+    console.error('Error:', err);
+    await recorder.stop();
+    await browser.close();
+    res.status(500).send('Recording failed');
+  }
+});
 
-  // Wait a bit before clicking the button
-  await page.waitForTimeout(1000);
-  await page.click(buttonSelector);
-
-  // Let results load and record some duration
-  await page.waitForTimeout(5000);
-
-  await browser.close();
-
-  // Stop ffmpeg after closing the browser
-  recorder.kill('SIGINT');
-
-  console.log('🎥 Recording complete: output.mp4');
-})();
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+});
