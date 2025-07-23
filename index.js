@@ -1,107 +1,69 @@
-const express = require('express');
-const bodyParser = require('body-parser');
-const path = require('path');
-const fs = require('fs');
-const puppeteer = require('puppeteer');
-const { PuppeteerScreenRecorder } = require('puppeteer-screen-recorder');
-const axios = require('axios');
-const FormData = require('form-data');
+const express = require("express");
+const puppeteer = require("puppeteer");
+const stream = require("puppeteer-stream");
+const fs = require("fs");
+const path = require("path");
 
 const app = express();
-const port = process.env.PORT || 3000;
-const outputDir = path.join(__dirname, 'output');
+const port = process.env.PORT || 10000;
 
-app.use(bodyParser.json());
-app.use(express.static('public'));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir);
+app.get("/", (req, res) => {
+  res.send("🎥 Puppeteer video recorder is running.");
+});
 
-const launchBrowser = async () => {
-  return await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu']
-  });
-};
+app.get("/health", (req, res) => {
+  res.send("OK");
+});
 
-const uploadToCatbox = async (filePath) => {
-  const form = new FormData();
-  form.append('reqtype', 'fileupload');
-  form.append('fileToUpload', fs.createReadStream(filePath));
+app.post("/record", async (req, res) => {
+  const keyword = req.body.keyword || "librarian";
+  const outputPath = path.join(__dirname, "output.webm");
 
-  const response = await axios.post('https://catbox.moe/user/api.php', form, {
-    headers: form.getHeaders()
-  });
-  return response.data;
-};
-
-app.post('/generate-video', async (req, res) => {
-  const { url, query } = req.body;
-  const videoFile = path.join(outputDir, 'recording.mp4');
-
-  const browser = await launchBrowser();
-  const page = await browser.newPage();
-  const recorder = new PuppeteerScreenRecorder(page, {
-    followNewTab: true,
-    fps: 25,
-    videoFrame: { width: 1280, height: 720 },
-    aspectRatio: '16:9'
-  });
-
+  let browser;
   try {
+    console.log("Launching browser...");
+
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"]
+    });
+
+    const page = await browser.newPage();
     await page.setViewport({ width: 1280, height: 720 });
-    await recorder.start(videoFile);
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
 
-    if (query) {
-      const selector = 'input[name="q"]';
-      const searchInput = await page.$(selector);
-      if (searchInput) {
-        await searchInput.click();
+    console.log("Navigating to search page...");
+    await page.goto("https://www.google.com", { waitUntil: "networkidle2" });
 
-        await page.evaluate(sel => {
-          const el = document.querySelector(sel);
-          el.style.outline = '3px solid red';
-        }, selector);
+    console.log(`Typing keyword: "${keyword}"`);
+    await page.type('input[name="q"]', keyword, { delay: 100 });
 
-        for (let i = 1; i <= query.length; i++) {
-          const partial = query.slice(0, i);
-          await page.evaluate((sel, val) => {
-            const el = document.querySelector(sel);
-            el.value = val;
-            el.dispatchEvent(new Event('input', { bubbles: true }));
-            el.dispatchEvent(new Event('change', { bubbles: true }));
-          }, selector, partial);
-          await new Promise(r => setTimeout(r, 200));
-        }
+    // Start video recording
+    console.log("Starting video stream...");
+    const videoStream = await stream.record(page);
+    
+    console.log("Submitting search...");
+    await Promise.all([
+      page.keyboard.press("Enter"),
+      page.waitForNavigation({ waitUntil: "networkidle2" })
+    ]);
 
-        await page.evaluate(sel => {
-          const el = document.querySelector(sel);
-          el.style.outline = '';
-        }, selector);
+    // Let it record the search results for a few seconds
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
-        const searchButton = await page.$('input[type="submit"], button[type="submit"]');
-        if (searchButton) {
-          await new Promise(r => setTimeout(r, 500));
-          await searchButton.click();
-        } else {
-          await page.keyboard.press('Enter');
-        }
+    const videoBuffer = await videoStream.stop();
 
-        await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 });
-        await new Promise(r => setTimeout(r, 4000));
-      }
-    }
+    fs.writeFileSync(outputPath, videoBuffer);
+    console.log(`✅ Video saved to ${outputPath}`);
 
-    await new Promise(r => setTimeout(r, 2000));
-    await recorder.stop();
-
-    const videoUrl = await uploadToCatbox(videoFile);
-    res.json({ message: `Video ready! 🚀\n${videoUrl}`, fileUrl: videoUrl });
+    res.sendFile(outputPath);
   } catch (err) {
-    console.error('❌ /generate-video ERROR:', err.message);
-    res.status(500).json({ error: 'Video generation failed' });
+    console.error("❌ Error:", err);
+    res.status(500).send("Recording failed: " + err.message);
   } finally {
-    await browser.close();
+    if (browser) await browser.close();
   }
 });
 
