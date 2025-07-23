@@ -1,16 +1,17 @@
 {
-  "name": "puppeteer-video-app",
+  "name": "puppeteer-xvfb-app",
   "version": "1.0.0",
-  "description": "Web app to record puppeteer video and upload",
+  "description": "Node.js app with Puppeteer and screen recording",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
     "axios": "^1.6.7",
+    "body-parser": "^1.20.2",
     "express": "^4.18.2",
     "form-data": "^4.0.0",
-    "puppeteer": "^22.8.2",
-    "puppeteer-screen-recorder": "^2.0.1"
+    "puppeteer": "^21.11.0",
+    "puppeteer-screen-recorder": "^1.2.7"
   }
 }
