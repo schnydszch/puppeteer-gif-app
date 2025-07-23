@@ -1,28 +1,38 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Puppeteer Video Capture</title>
-  <style>
-    body { font-family: sans-serif; padding: 2rem; text-align: center; }
-    button { padding: 1rem 2rem; font-size: 1.2rem; }
-  </style>
+  <meta charset="UTF-8">
+  <title>Puppeteer Video Recorder</title>
 </head>
 <body>
-  <h1>Puppeteer Search Video Generator</h1>
-  <button onclick="generateVideo()">Generate Video</button>
-  <p id="status"></p>
+  <h1>Puppeteer Video Recorder</h1>
+  <form id="record-form">
+    <input type="text" id="url" placeholder="Enter URL" required value="https://google.com"><br><br>
+    <input type="text" id="searchText" placeholder="Enter text to search" required value="Render puppeteer"><br><br>
+    <button type="submit">Generate Video</button>
+  </form>
+  <br>
+  <video id="preview" width="640" height="360" controls style="display:none;"></video>
+
   <script>
-    async function generateVideo() {
-      document.getElementById('status').textContent = 'Generating...';
-      const res = await fetch('/generate');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'puppeteer_recording.webm';
-      a.click();
-      document.getElementById('status').textContent = 'Video downloaded!';
-    }
+    const form = document.getElementById('record-form');
+    const preview = document.getElementById('preview');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const url = document.getElementById('url').value;
+      const searchText = document.getElementById('searchText').value;
+
+      const res = await fetch('/record', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, searchText })
+      });
+
+      const data = await res.json();
+      preview.src = data.video;
+      preview.style.display = 'block';
+    });
   </script>
 </body>
 </html>
