@@ -1,32 +1,31 @@
-FROM node:20-slim
+FROM node:18
 
+# Install Xvfb and fonts for Puppeteer
 RUN apt-get update && apt-get install -y \
-    wget \
-    ca-certificates \
-    fonts-liberation \
-    libappindicator3-1 \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libcups2 \
-    libdbus-1-3 \
-    libgdk-pixbuf2.0-0 \
-    libnspr4 \
-    libnss3 \
-    libx11-xcb1 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxrandr2 \
-    xdg-utils \
-    ffmpeg
+  xvfb \
+  fonts-liberation \
+  libnss3 \
+  libxss1 \
+  libasound2 \
+  libatk-bridge2.0-0 \
+  libgtk-3-0 \
+  && rm -rf /var/lib/apt/lists/*
 
+# Set app directory
 WORKDIR /app
 
-COPY package*.json ./
+# Copy only the package files first
+COPY package.json ./
+COPY package-lock.json ./
+
+# Install dependencies
 RUN npm install
 
+# Now copy the rest of the application
 COPY . .
 
+# Expose port
 EXPOSE 3000
 
-CMD ["npm", "start"]
+# Start the app
+CMD ["xvfb-run", "node", "index.js"]
