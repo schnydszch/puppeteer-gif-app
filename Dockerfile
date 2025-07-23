@@ -1,32 +1,25 @@
+# Use official Node.js LTS image
 FROM node:18
 
-# Install Xvfb and fonts for Puppeteer
-RUN apt-get update && apt-get install -y \
-  xvfb \
-  fonts-liberation \
-  libnss3 \
-  libxss1 \
-  libasound2 \
-  libatk-bridge2.0-0 \
-  libgtk-3-0 \
-  && rm -rf /var/lib/apt/lists/*
-
-# Set app directory
+# Set working directory
 WORKDIR /app
 
-# Copy only the package files first
-COPY package.json ./
-COPY package-lock.json ./
+# Install necessary system dependencies
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    xvfb \
+    x11-utils \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
+# Copy package files and install dependencies
+COPY package*.json ./
 RUN npm install
 
-# Now copy the rest of the application
+# Copy all source files
 COPY . .
 
 # Expose port
-EXPOSE 3000
+EXPOSE 10000
 
-# Start the app
-CMD ["xvfb-run", "node", "index.js"]
-
+# Start with virtual framebuffer for Puppeteer and stream recording
+CMD ["xvfb-run", "--auto-servernum", "--server-args=-screen 0 1024x768x24", "node", "index.js"]
